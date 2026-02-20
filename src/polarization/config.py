@@ -30,6 +30,7 @@ class PathsConfig:
     embedding_figure: Path
     k_selection_figure: Path
     summary_report_file: Path
+    insights_report_file: Path
 
 
 @dataclass(frozen=True)
@@ -40,6 +41,8 @@ class DataConfig:
     required_columns: list[str]
     exclude_columns: list[str]
     demographic_columns: list[str]
+    max_categorical_levels: int
+    max_categorical_ratio: float
 
 
 @dataclass(frozen=True)
@@ -152,6 +155,7 @@ def load_config(config_file: str | Path | None = None) -> AppConfig:
         embedding_figure=reports_figures_dir / "embedding_clusters.png",
         k_selection_figure=reports_figures_dir / "k_selection_silhouette.png",
         summary_report_file=project_root / "reports" / "summary_report.md",
+        insights_report_file=project_root / "reports" / "insights.md",
     )
 
     id_column = str(data_section.get("id_column", "caseid"))
@@ -166,6 +170,8 @@ def load_config(config_file: str | Path | None = None) -> AppConfig:
         required_columns=required_columns,
         exclude_columns=exclude_columns,
         demographic_columns=demographic_columns,
+        max_categorical_levels=int(data_section.get("max_categorical_levels", 120)),
+        max_categorical_ratio=float(data_section.get("max_categorical_ratio", 0.2)),
     )
 
     modeling = ModelingConfig(
@@ -193,4 +199,3 @@ def load_config(config_file: str | Path | None = None) -> AppConfig:
         data=data,
         modeling=modeling,
     )
-

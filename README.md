@@ -5,7 +5,6 @@ Production-quality, reproducible Python project for analyzing political polariza
 ## Dataset Citation
 
 - Source: Cooperative Election Study (CCES) 2024 release.
-- DOI: `CCES24...` (replace with the exact DOI string from your release metadata if needed).
 - This project does not download data automatically.
 
 ## Quickstart
@@ -112,6 +111,7 @@ Running `train` + `report` generates:
 - `reports/tables/cluster_profiles.csv`
 - `reports/tables/cluster_feature_contrasts.csv`
 - `reports/summary_report.md`
+- `reports/insights.md`
 
 ## Screenshots Placeholders
 
@@ -132,4 +132,3 @@ pytest -q
 - Bias: Survey nonresponse, weighting, and measurement choices can bias inferred polarization structure.
 - Interpretability limits: Clusters are statistical segments, not fixed political identities.
 - Reproducibility: Keep config and preprocessing assumptions explicit; document any manual feature exclusions.
-

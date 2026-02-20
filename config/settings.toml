@@ -10,6 +10,8 @@ id_column = "caseid"
 required_columns = ["caseid"]
 exclude_columns = ["inputstate", "countyfips", "zip"]
 demographic_columns = ["age", "gender", "educ", "pid7", "race", "ideo5"]
+max_categorical_levels = 120
+max_categorical_ratio = 0.2
 
 [modeling]
 embedding_method = "umap"

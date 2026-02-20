@@ -82,12 +82,21 @@ def run_train(config: AppConfig) -> None:
         dataframe=dataframe,
         id_column=config.data.id_column,
         exclude_columns=config.data.exclude_columns,
+        max_categorical_levels=config.data.max_categorical_levels,
+        max_categorical_ratio=config.data.max_categorical_ratio,
     )
     LOGGER.info(
         "Detected %d numeric and %d categorical features.",
         len(numeric_columns),
         len(categorical_columns),
     )
+
+    # Normalize pandas extension dtypes to sklearn-friendly null semantics.
+    for numeric_column in numeric_columns:
+        dataframe[numeric_column] = pd.to_numeric(dataframe[numeric_column], errors="coerce")
+    for categorical_column in categorical_columns:
+        obj_series = dataframe[categorical_column].astype("object")
+        dataframe[categorical_column] = obj_series.where(pd.notna(obj_series), np.nan)
 
     preprocessor = build_preprocessing_pipeline(
         numeric_columns=numeric_columns,
@@ -214,6 +223,63 @@ def _markdown_cluster_table(cluster_profiles: pd.DataFrame) -> str:
     return "\n".join(lines)
 
 
+def _top_insights_markdown(
+    cluster_profiles: pd.DataFrame, feature_contrasts: pd.DataFrame
+) -> str:
+    """Build concise, human-readable cluster insights markdown."""
+
+    if cluster_profiles.empty:
+        return "_No cluster insights available yet._"
+
+    sections: list[str] = []
+    for _, profile in cluster_profiles.sort_values("cluster").iterrows():
+        cluster_id = int(profile["cluster"])
+        size = int(profile["n"])
+        pct = float(profile["pct"])
+        sections.append(f"### Cluster {cluster_id} ({size:,} respondents, {pct:.1%})")
+
+        profile_items: list[str] = []
+        for column in cluster_profiles.columns:
+            if column in {"cluster", "n", "pct"}:
+                continue
+            value = profile[column]
+            if pd.isna(value):
+                continue
+            if column.endswith("_mean"):
+                profile_items.append(f"- `{column}`: {float(value):.2f}")
+            elif column.endswith("_mode_pct"):
+                profile_items.append(f"- `{column}`: {float(value):.1%}")
+            else:
+                profile_items.append(f"- `{column}`: {value}")
+
+        if profile_items:
+            sections.append("Profile:")
+            sections.extend(profile_items[:8])
+
+        cluster_contrasts = feature_contrasts[feature_contrasts["cluster"] == cluster_id]
+        if not cluster_contrasts.empty:
+            positive = (
+                cluster_contrasts[cluster_contrasts["direction"] == "positive"]
+                .sort_values("std_diff", ascending=False)
+                .head(5)
+            )
+            negative = (
+                cluster_contrasts[cluster_contrasts["direction"] == "negative"]
+                .sort_values("std_diff", ascending=True)
+                .head(5)
+            )
+            sections.append("Top distinguishing features (positive):")
+            for _, row in positive.iterrows():
+                sections.append(f"- `{row['feature']}` ({float(row['std_diff']):+.2f} SD)")
+            sections.append("Top distinguishing features (negative):")
+            for _, row in negative.iterrows():
+                sections.append(f"- `{row['feature']}` ({float(row['std_diff']):+.2f} SD)")
+
+        sections.append("")
+
+    return "\n".join(sections).strip()
+
+
 def run_report(config: AppConfig) -> None:
     """Generate a markdown summary report from saved artifacts."""
 
@@ -227,6 +293,13 @@ def run_report(config: AppConfig) -> None:
         pd.read_csv(config.paths.cluster_profiles_file)
         if config.paths.cluster_profiles_file.exists()
         else pd.DataFrame(columns=["cluster", "n", "pct"])
+    )
+    feature_contrasts = (
+        pd.read_csv(config.paths.feature_contrasts_file)
+        if config.paths.feature_contrasts_file.exists()
+        else pd.DataFrame(
+            columns=["cluster", "direction", "feature", "std_diff", "cluster_mean", "overall_mean"]
+        )
     )
 
     report = [
@@ -252,6 +325,14 @@ def run_report(config: AppConfig) -> None:
         f"- Analysis parquet: `{config.paths.analysis_data_file}`",
     ]
     write_markdown(config.paths.summary_report_file, "\n".join(report))
+    insights = [
+        "# Polarization Insights",
+        "",
+        "Interpretable cluster-level insights derived from standardized feature contrasts and demographic profiles.",
+        "",
+        _top_insights_markdown(cluster_profiles=cluster_profiles, feature_contrasts=feature_contrasts),
+    ]
+    write_markdown(config.paths.insights_report_file, "\n".join(insights))
     LOGGER.info("Report generated at %s", config.paths.summary_report_file)
 
 
@@ -321,4 +402,3 @@ def main(argv: list[str] | None = None) -> None:
 
 if __name__ == "__main__":
     main()
-

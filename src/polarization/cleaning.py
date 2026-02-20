@@ -41,6 +41,9 @@ def clean_dataframe(dataframe: pd.DataFrame, id_column: str | None = None) -> pd
     else:
         cleaned = cleaned.drop_duplicates(keep="first")
 
+    # sklearn imputers handle np.nan consistently across object/string columns.
+    cleaned = cleaned.replace({pd.NA: np.nan})
+
     return cleaned
 
 
@@ -48,6 +51,8 @@ def infer_feature_types(
     dataframe: pd.DataFrame,
     id_column: str | None = None,
     exclude_columns: Sequence[str] | None = None,
+    max_categorical_levels: int = 120,
+    max_categorical_ratio: float = 0.2,
 ) -> tuple[list[str], list[str]]:
     """Infer numeric and categorical feature columns for preprocessing."""
 
@@ -57,6 +62,8 @@ def infer_feature_types(
 
     numeric_cols: list[str] = []
     categorical_cols: list[str] = []
+
+    n_rows = max(len(dataframe), 1)
 
     for column in dataframe.columns:
         if column in excluded:
@@ -72,7 +79,11 @@ def infer_feature_types(
             or pd.api.types.is_bool_dtype(dataframe[column])
             or pd.api.types.is_string_dtype(dataframe[column])
         ):
-            categorical_cols.append(column)
+            unique_count = int(dataframe[column].nunique(dropna=True))
+            unique_ratio = unique_count / n_rows
+            ratio_ok = True if n_rows < 100 else unique_ratio <= max_categorical_ratio
+            if unique_count <= max_categorical_levels and ratio_ok:
+                categorical_cols.append(column)
 
     return numeric_cols, categorical_cols
 
@@ -111,4 +122,3 @@ def build_preprocessing_pipeline(
         transformers.append(("categorical", categorical_pipeline, list(categorical_columns)))
 
     return ColumnTransformer(transformers=transformers, remainder="drop")
-

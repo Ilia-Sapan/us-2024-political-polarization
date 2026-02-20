@@ -46,8 +46,10 @@ data/processed/*
 !data/processed/.gitkeep
 reports/figures/*
 !reports/figures/.gitkeep
+!reports/figures/*.png
 reports/tables/*
 !reports/tables/.gitkeep
+!reports/tables/*.csv
 
 # Logs
 *.log
