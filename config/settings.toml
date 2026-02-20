@@ -1,0 +1,23 @@
+[paths]
+raw_dir = "data/raw"
+processed_dir = "data/processed"
+reports_figures_dir = "reports/figures"
+reports_tables_dir = "reports/tables"
+raw_data_file = ""
+
+[data]
+id_column = "caseid"
+required_columns = ["caseid"]
+exclude_columns = ["inputstate", "countyfips", "zip"]
+demographic_columns = ["age", "gender", "educ", "pid7", "race", "ideo5"]
+
+[modeling]
+embedding_method = "umap"
+embedding_components = 2
+random_state = 42
+k_min = 2
+k_max = 12
+silhouette_sample_size = 10000
+top_features_per_cluster = 10
+enable_hdbscan = true
+hdbscan_min_cluster_size = 200
